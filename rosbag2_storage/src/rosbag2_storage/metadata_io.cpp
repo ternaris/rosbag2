@@ -18,8 +18,11 @@
 #include <string>
 #include <vector>
 
+#include "rcpputils/filesystem_helper.hpp"
+
+#include "rcutils/filesystem.h"
+
 #include "rosbag2_storage/topic_metadata.hpp"
-#include "rosbag2_storage/filesystem_helper.hpp"
 
 #ifdef _WIN32
 // This is necessary because of a bug in yaml-cpp's cmake
@@ -126,6 +129,11 @@ struct convert<rosbag2_storage::BagMetadata>
     node["starting_time"] = metadata.starting_time;
     node["message_count"] = metadata.message_count;
     node["topics_with_message_count"] = metadata.topics_with_message_count;
+
+    if (metadata.version >= 3) {  // fields introduced by rosbag2_compression
+      node["compression_format"] = metadata.compression_format;
+      node["compression_mode"] = metadata.compression_mode;
+    }
     return node;
   }
 
@@ -140,6 +148,11 @@ struct convert<rosbag2_storage::BagMetadata>
     metadata.message_count = node["message_count"].as<uint64_t>();
     metadata.topics_with_message_count =
       node["topics_with_message_count"].as<std::vector<rosbag2_storage::TopicInformation>>();
+
+    if (metadata.version >= 3) {  // fields introduced by rosbag2_compression
+      metadata.compression_format = node["compression_format"].as<std::string>();
+      metadata.compression_mode = node["compression_mode"].as<std::string>();
+    }
     return true;
   }
 };
@@ -162,7 +175,8 @@ BagMetadata MetadataIo::read_metadata(const std::string & uri)
   try {
     YAML::Node yaml_file = YAML::LoadFile(get_metadata_file_name(uri));
     auto metadata = yaml_file["rosbag2_bagfile_information"].as<rosbag2_storage::BagMetadata>();
-    metadata.bag_size = FilesystemHelper::calculate_directory_size(uri);
+    rcutils_allocator_t allocator = rcutils_get_default_allocator();
+    metadata.bag_size = rcutils_calculate_directory_size(uri.c_str(), allocator);
     return metadata;
   } catch (const YAML::Exception & ex) {
     throw std::runtime_error(std::string("Exception on parsing info file: ") + ex.what());
@@ -171,15 +185,14 @@ BagMetadata MetadataIo::read_metadata(const std::string & uri)
 
 std::string MetadataIo::get_metadata_file_name(const std::string & uri)
 {
-  std::string metadata_file = rosbag2_storage::FilesystemHelper::concat({uri, metadata_filename});
+  std::string metadata_file = (rcpputils::fs::path(uri) / metadata_filename).string();
 
   return metadata_file;
 }
 
 bool MetadataIo::metadata_file_exists(const std::string & uri)
 {
-  return rosbag2_storage::FilesystemHelper::file_exists(
-    rosbag2_storage::FilesystemHelper::concat({uri, metadata_filename}));
+  return rcpputils::fs::path(get_metadata_file_name(uri)).exists();
 }
 
 }  // namespace rosbag2_storage

@@ -17,21 +17,24 @@
 
 #include <gmock/gmock.h>
 
-#include <memory>
 #include <future>
+#include <memory>
 #include <string>
 #include <vector>
 
+#include "rcpputils/filesystem_helper.hpp"
+
 #include "rclcpp/rclcpp.hpp"
+
+#include "rosbag2_storage_default_plugins/sqlite/sqlite_storage.hpp"
+
+#include "rosbag2_test_common/temporary_directory_fixture.hpp"
+#include "rosbag2_test_common/publisher_manager.hpp"
+#include "rosbag2_test_common/memory_management.hpp"
 
 #include "test_msgs/msg/arrays.hpp"
 #include "test_msgs/msg/basic_types.hpp"
 #include "test_msgs/message_fixtures.hpp"
-#include "rosbag2_storage/filesystem_helper.hpp"
-#include "rosbag2_storage_default_plugins/sqlite/sqlite_storage.hpp"
-#include "rosbag2_test_common/temporary_directory_fixture.hpp"
-#include "rosbag2_test_common/publisher_manager.hpp"
-#include "rosbag2_test_common/memory_management.hpp"
 
 using namespace ::testing;  // NOLINT
 using namespace std::chrono_literals;  // NOLINT
@@ -42,10 +45,18 @@ class RecordFixture : public TemporaryDirectoryFixture
 public:
   RecordFixture()
   {
-    root_bag_path_ = rosbag2_storage::FilesystemHelper::concat({temporary_dir_path_, "bag"});
-    storage_path_ = rosbag2_storage::FilesystemHelper::concat({root_bag_path_, "bag_0"});
+    root_bag_path_ = (rcpputils::fs::path(temporary_dir_path_) / "bag").string();
+    storage_path_ = (rcpputils::fs::path(root_bag_path_) / "bag_0").string();
     database_path_ = storage_path_ + ".db3";
     std::cout << "Database " << database_path_ << " in " << temporary_dir_path_ << std::endl;
+  }
+
+  void SetUp() override
+  {
+    const auto path = rcpputils::fs::path{root_bag_path_};
+    if (rcpputils::fs::exists(path)) {
+      remove_directory_recursively(path.string());
+    }
   }
 
   static void SetUpTestCase()
@@ -63,9 +74,11 @@ public:
     while (true) {
       try {
         std::this_thread::sleep_for(50ms);  // wait a bit to not query constantly
-        rosbag2_storage_plugins::SqliteWrapper
-          db(database_path_, rosbag2_storage::storage_interfaces::IOFlag::READ_ONLY);
-        return;
+        if (rcpputils::fs::exists(rcpputils::fs::path{database_path_})) {
+          rosbag2_storage_plugins::SqliteWrapper
+            db(database_path_, rosbag2_storage::storage_interfaces::IOFlag::READ_ONLY);
+          return;
+        }
       } catch (const rosbag2_storage_plugins::SqliteException & ex) {
         (void) ex;  // still waiting
       }
