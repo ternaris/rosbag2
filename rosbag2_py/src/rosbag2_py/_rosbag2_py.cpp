@@ -111,4 +111,8 @@ PYBIND11_MODULE(_rosbag2_py, m) {
   .def_readwrite("serialization_format",
     &rosbag2_storage::TopicMetadata::serialization_format)
   .def("equals", &rosbag2_storage::TopicMetadata::operator==);
+
+  pybind11::class_<rosbag2_storage::StorageFilter>(m, "StorageFilter")
+  .def(pybind11::init())
+  .def_readwrite("topics", &rosbag2_storage::StorageFilter::topics);
 }
