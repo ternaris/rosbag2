@@ -22,10 +22,11 @@ namespace py = pybind11;
 #include <utility>
 #include <map>
 
-#include "rosbag2/readers/sequential_reader.hpp"
-#include "rosbag2/storage_options.hpp"
-#include "rosbag2/converter_options.hpp"
+#include "rosbag2_cpp/storage_options.hpp"
+#include "rosbag2_cpp/converter_options.hpp"
+#include "rosbag2_cpp/readers/sequential_reader.hpp"
 #include "rosbag2_storage/topic_metadata.hpp"
+#include "rosbag2_storage/storage_filter.hpp"
 // #include "rmw/rmw.h"
 
 namespace rosbag2_py
@@ -39,10 +40,15 @@ public:
   {}
 
   void open(
-    rosbag2::StorageOptions & storage_options,
-    rosbag2::ConverterOptions & converter_options)
+    rosbag2_cpp::StorageOptions & storage_options,
+    rosbag2_cpp::ConverterOptions & converter_options)
   {
     reader_.open(storage_options, converter_options);
+  }
+
+  bool has_next()
+  {
+    return reader_.has_next();
   }
 
   /// Return a pair containing the topic name and the serialized ROS message.
@@ -52,12 +58,8 @@ public:
     rcutils_uint8_array_t rcutils_data = *next->serialized_data.get();
     std::string serialized_data(rcutils_data.buffer,
       rcutils_data.buffer + rcutils_data.buffer_length);
-    return pybind11::make_tuple(next->topic_name, py::bytes(serialized_data), next->time_stamp);
-  }
-
-  bool has_next()
-  {
-    return reader_.has_next();
+    return pybind11::make_tuple(next->topic_name, py::bytes(serialized_data),
+      next->time_stamp);
   }
 
   /// Return a mapping from topic name to topic type.
@@ -66,8 +68,13 @@ public:
     return reader_.get_all_topics_and_types();
   }
 
+  void set_filter(const rosbag2_storage::StorageFilter & storage_filter)
+  {
+    reader_.set_filter(storage_filter);
+  }
+
 private:
-  rosbag2::readers::SequentialReader reader_;
+  rosbag2_cpp::readers::SequentialReader reader_;
 };
 
 }  // namespace rosbag2_py
@@ -80,21 +87,22 @@ PYBIND11_MODULE(_rosbag2_py, m) {
   .def("open", &rosbag2_py::SequentialReader::open)
   .def("read_next", &rosbag2_py::SequentialReader::read_next)
   .def("has_next", &rosbag2_py::SequentialReader::has_next)
-  .def("get_all_topics_and_types", &rosbag2_py::SequentialReader::get_all_topics_and_types);
+  .def("get_all_topics_and_types", &rosbag2_py::SequentialReader::get_all_topics_and_types)
+  .def("set_filter", &rosbag2_py::SequentialReader::set_filter);
 
-  pybind11::class_<rosbag2::StorageOptions>(m, "StorageOptions")
+  pybind11::class_<rosbag2_cpp::StorageOptions>(m, "StorageOptions")
   .def(pybind11::init())
-  .def_readwrite("uri", &rosbag2::StorageOptions::uri)
-  .def_readwrite("storage_id", &rosbag2::StorageOptions::storage_id)
+  .def_readwrite("uri", &rosbag2_cpp::StorageOptions::uri)
+  .def_readwrite("storage_id", &rosbag2_cpp::StorageOptions::storage_id)
   .def_readwrite("max_bagfile_size",
-    &rosbag2::StorageOptions::max_bagfile_size);
+    &rosbag2_cpp::StorageOptions::max_bagfile_size);
 
-  pybind11::class_<rosbag2::ConverterOptions>(m, "ConverterOptions")
+  pybind11::class_<rosbag2_cpp::ConverterOptions>(m, "ConverterOptions")
   .def(pybind11::init())
   .def_readwrite("input_serialization_format",
-    &rosbag2::ConverterOptions::input_serialization_format)
+    &rosbag2_cpp::ConverterOptions::input_serialization_format)
   .def_readwrite("output_serialization_format",
-    &rosbag2::ConverterOptions::output_serialization_format);
+    &rosbag2_cpp::ConverterOptions::output_serialization_format);
 
   pybind11::class_<rosbag2_storage::TopicMetadata>(m, "TopicMetadata")
   .def(pybind11::init())
