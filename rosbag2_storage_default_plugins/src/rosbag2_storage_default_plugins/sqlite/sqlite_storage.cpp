@@ -27,8 +27,6 @@
 
 #include "rcpputils/filesystem_helper.hpp"
 
-#include "rcutils/filesystem.h"
-
 #include "rosbag2_storage/metadata_io.hpp"
 #include "rosbag2_storage/serialized_bag_message.hpp"
 #include "rosbag2_storage_default_plugins/sqlite/sqlite_statement_wrapper.hpp"
@@ -103,8 +101,8 @@ void SqliteStorage::open(
   read_statement_ = nullptr;
   write_statement_ = nullptr;
 
-  ROSBAG2_STORAGE_DEFAULT_PLUGINS_LOG_INFO_STREAM("Opened database '" <<
-    relative_path_ << "' for " << to_string(io_flag) << ".");
+  ROSBAG2_STORAGE_DEFAULT_PLUGINS_LOG_INFO_STREAM(
+    "Opened database '" << relative_path_ << "' for " << to_string(io_flag) << ".");
 
   storage_filter_.topics.clear();
 }
@@ -116,7 +114,8 @@ void SqliteStorage::write(std::shared_ptr<const rosbag2_storage::SerializedBagMe
   }
   auto topic_entry = topics_.find(message->topic_name);
   if (topic_entry == end(topics_)) {
-    throw SqliteException("Topic '" + message->topic_name +
+    throw SqliteException(
+            "Topic '" + message->topic_name +
             "' has not been created yet! Call 'create_topic' first.");
   }
 
@@ -177,7 +176,9 @@ std::vector<rosbag2_storage::TopicMetadata> SqliteStorage::get_all_topics_and_ty
 
 uint64_t SqliteStorage::get_bagfile_size() const
 {
-  return rcutils_get_file_size(get_relative_file_path().c_str());
+  const auto bag_path = rcpputils::fs::path{get_relative_file_path()};
+
+  return bag_path.exists() ? bag_path.file_size() : 0u;
 }
 
 void SqliteStorage::initialize()
@@ -306,7 +307,7 @@ rosbag2_storage::BagMetadata SqliteStorage::get_metadata()
   metadata.starting_time =
     std::chrono::time_point<std::chrono::high_resolution_clock>(std::chrono::nanoseconds(min_time));
   metadata.duration = std::chrono::nanoseconds(max_time) - std::chrono::nanoseconds(min_time);
-  metadata.bag_size = rcutils_get_file_size(get_relative_file_path().c_str());
+  metadata.bag_size = get_bagfile_size();
 
   return metadata;
 }
@@ -320,5 +321,6 @@ void SqliteStorage::set_filter(
 }  // namespace rosbag2_storage_plugins
 
 #include "pluginlib/class_list_macros.hpp"  // NOLINT
-PLUGINLIB_EXPORT_CLASS(rosbag2_storage_plugins::SqliteStorage,
+PLUGINLIB_EXPORT_CLASS(
+  rosbag2_storage_plugins::SqliteStorage,
   rosbag2_storage::storage_interfaces::ReadWriteInterface)
