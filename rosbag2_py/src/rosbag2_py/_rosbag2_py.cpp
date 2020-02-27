@@ -68,12 +68,10 @@ public:
     return reader_.get_all_topics_and_types();
   }
 
-  /*
   void set_filter(const rosbag2_storage::StorageFilter & storage_filter)
   {
     reader_.set_filter(storage_filter);
   }
-  */
 
 private:
   rosbag2_cpp::readers::SequentialReader reader_;
@@ -89,8 +87,9 @@ PYBIND11_MODULE(_rosbag2_py, m) {
   .def("open", &rosbag2_py::SequentialReader::open)
   .def("read_next", &rosbag2_py::SequentialReader::read_next)
   .def("has_next", &rosbag2_py::SequentialReader::has_next)
-  .def("get_all_topics_and_types", &rosbag2_py::SequentialReader::get_all_topics_and_types);
-  // .def("set_filter", &rosbag2_py::SequentialReader::set_filter);
+  .def("get_all_topics_and_types", &rosbag2_py::SequentialReader::get_all_topics_and_types)
+  // ;
+  .def("set_filter", &rosbag2_py::SequentialReader::set_filter);
 
   pybind11::class_<rosbag2_cpp::StorageOptions>(m, "StorageOptions")
   .def(pybind11::init())
