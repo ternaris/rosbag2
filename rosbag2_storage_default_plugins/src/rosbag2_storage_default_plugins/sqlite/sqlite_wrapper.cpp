@@ -56,7 +56,7 @@ SqliteWrapper::SqliteWrapper(
         rc << "): " << sqlite3_errstr(rc);
       throw SqliteException{errmsg.str()};
     }
-    prepare_statement("PRAGMA journal_mode = WAL;")->execute_and_reset();
+    prepare_statement("PRAGMA journal_mode = MEMORY;")->execute_and_reset();
     prepare_statement("PRAGMA synchronous = NORMAL;")->execute_and_reset();
   }
 
